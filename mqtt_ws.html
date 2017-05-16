@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <script src="http://www.hivemq.com/demos/websocket-client/js/mqttws31.js"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script src="https://threejs.org/build/three.js"></script>
+</head>
+<body>
+<script>
+
+//Using the HiveMQ public Broker, with a random client Id
+var client = new Messaging.Client("broker.hivemq.com", 8000, "test_" + parseInt(Math.random() * 100, 10));
+var data = {};
+
+//Gets  called if the websocket/mqtt connection gets disconnected for any reason
+client.onConnectionLost = function (responseObject) {
+  //Depending on your scenario you could implement a reconnect logic here
+  alert("connection lost: " + responseObject.errorMessage);
+};
+
+//Gets called whenever you receive a message for your subscriptions
+client.onMessageArrived = function (message) {
+  //Do something with the push message you received
+  data = JSON.parse(message.payloadString);
+  //console.log(data);
+};
+
+//Connect Options
+var options = {
+  timeout: 3,
+  //Gets Called if the connection has sucessfully been established
+  onSuccess: function () {
+    console.log("Connected");
+    client.subscribe('/thisismychan', {qos: 2});
+  },
+  //Gets Called if the connection could not be established
+  onFailure: function (message) {
+    alert("Connection failed: " + message.errorMessage);
+  }
+};
+
+client.connect(options);
+
+
+// Cube rendering
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+var renderer = new THREE.WebGLRenderer();
+renderer.setSize( window.innerWidth, window.innerHeight );
+document.body.appendChild( renderer.domElement );
+
+var geometry = new THREE.BoxGeometry( 4, 1, 9 );
+var material = new THREE.MeshBasicMaterial({color:0xff0000, transparent:true, opacity:0.7, side: THREE.DoubleSide, wireframe: true});
+var cube = new THREE.Mesh( geometry, material );
+cube.castShadow = true;
+scene.add( cube );
+
+camera.position.z = 10;
+camera.position.y = 3;
+
+function render() {
+	requestAnimationFrame( render );
+
+  if ( typeof(data.roll) !== "undefined" ) {
+	  cube.rotation.x = data.pitch;
+	  //cube.rotation.y = data.yaw;
+    cube.rotation.z = -data.roll;
+  }
+
+	renderer.render( scene, camera );
+}
+render();
+
+</script>
+</body>
+</html>
