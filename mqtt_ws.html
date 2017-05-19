@@ -64,7 +64,7 @@ function render() {
 
   if ( typeof(data.roll) !== "undefined" ) {
 	  cube.rotation.x = data.pitch;
-	  //cube.rotation.y = data.yaw;
+	  cube.rotation.y = -data.yaw;
     cube.rotation.z = -data.roll;
   }
 

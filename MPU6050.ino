@@ -13,8 +13,8 @@ const int ACCEL_XOUT =    0x3B; // registro de leitura do eixo X do acelerômetr
 
 double gyroXrate,gyroYrate,gyroZrate,
     gyroXangle,gyroYangle,gyroZangle,
-    accelXangle,accelYangle,
-    compXangle,compYangle,
+    accelXangle,accelYangle,accelZangle,
+    compXangle,compYangle,compZangle,
     dt,pitch,roll,yaw;
 float alpha,tau;
 uint32_t timer;
@@ -59,7 +59,7 @@ void checkMPU() {
     Serial.println("MPU6050 Dispositivo respondeu OK! (104)");
     data = readRegMPU(PWR_MGMT_1); // Register 107 – Power Management 1-0x6B
     if(data == 64) Serial.println("MPU6050 em modo SLEEP! (64)");
-    else Serial.println("MPU6050 em modo ACTIVE!"); 
+    else Serial.println("MPU6050 em modo ACTIVE!");
   }
   else Serial.println("Verifique dispositivo - MPU6050 NÃO disponível!");
 }
@@ -68,7 +68,7 @@ void initMPU() {
   setSleepOff();
   setGyroScale();
   setAccelScale();
-  compXangle=compYangle=0;
+  compXangle=compYangle=compZangle=0;
   tau = 1.0;
   delay(2000);
 }
@@ -103,7 +103,7 @@ void setAccelScale() {
   writeRegMPU(ACCEL_CONFIG, 0);
 }
 
-void readRawMPU() {  
+void readRawMPU() {
   Wire.beginTransmission(MPU_ADDR);       // inicia comunicação com endereço do MPU6050
   Wire.write(ACCEL_XOUT);                 // envia o registro com o qual se deseja trabalhar, começando com registro 0x3B (ACCEL_XOUT_H)
   Wire.endTransmission(false);            // termina transmissão mas continua com I2C aberto (envia STOP e START)
@@ -128,16 +128,16 @@ void readRawMPU() {
   GyY = Wire.read() << 8;
   GyY |= Wire.read();
   GyZ = Wire.read() << 8;
-  GyZ |= Wire.read(); 
+  GyZ |= Wire.read();
 
 
  /*
-  * Convert to deg/s, depende de la sensibilidad 
+  * Convert to deg/s, depende de la sensibilidad
 Angular Velocity Limit  |   Sensitivity
 ----------------------------------------
 250º/s                  |    131
-500º/s                  |    65.5 
-1000º/s                 |    32.8 
+500º/s                  |    65.5
+1000º/s                 |    32.8
 2000º/s                 |    16.4
   */
   gyroXrate = DEG_TO_RAD * dt * GyX / 131.0;
@@ -146,24 +146,25 @@ Angular Velocity Limit  |   Sensitivity
 
   gyroXangle = compXangle - gyroXrate;
   gyroYangle = compYangle - gyroYrate;
-  gyroZangle += gyroZrate;
+  gyroZangle = compZangle - gyroZrate;
 
   Serial.print("gyro "); Serial.print(gyroXangle); Serial.print(" . "); Serial.print(gyroYangle); Serial.print(" . "); Serial.println(gyroZangle);
-  
+
   accelXangle = -atan2(AcY, sqrt(AcX * AcX + AcZ * AcZ));
   accelYangle = atan2(AcX, sqrt(AcY * AcY + AcZ * AcZ));
+  accelZangle = atan2(sqrt(AcY * AcY + AcY * AcY), AcZ);
 
   Serial.print("accel "); Serial.print(accelXangle); Serial.print(" . "); Serial.println(accelYangle);
 
   alpha = tau/(tau+dt);
   compXangle = alpha*gyroXangle + (1.0f - alpha)*accelXangle;
   compYangle = alpha*gyroYangle + (1.0f - alpha)*accelYangle;
+  compZangle = alpha*gyroZangle + (1.0f - alpha)*accelZangle;
 
-  roll= compYangle;
   pitch = compXangle;
-  yaw = gyroZangle;
+  roll= compYangle;
+  yaw = compZangle;
 
   led_state = !led_state;
   digitalWrite(LED_BUILTIN, led_state);         // pisca LED do NodeMCU a cada leitura do sensor
 }
-
