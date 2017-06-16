@@ -56,16 +56,17 @@ var cube = new THREE.Mesh( geometry, material );
 cube.castShadow = true;
 scene.add( cube );
 
-camera.position.z = 10;
-camera.position.y = 3;
+camera.position.z = -10;
+camera.position.y = -3;
+camera.rotation.x = - Math.PI;
 
 function render() {
 	requestAnimationFrame( render );
 
   if ( typeof(data.roll) !== "undefined" ) {
 	  cube.rotation.x = data.pitch;
-	  cube.rotation.y = -data.yaw;
-    cube.rotation.z = -data.roll;
+	  cube.rotation.y = data.yaw;
+    cube.rotation.z = data.roll;
   }
 
 	renderer.render( scene, camera );

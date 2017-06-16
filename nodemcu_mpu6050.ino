@@ -1,40 +1,38 @@
-#include <ESP8266WiFi.h>  // biblioteca para usar as funções de Wifi do módulo ESP8266
-#include <Wire.h>         // I2C Para comunicarse con el MPU
-#include <ArduinoJson.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include <ESP8266WiFi.h>
+#include "MPU6050_Sensor.h"
 
-// pines I2C
-const int sda_pin = D5;
-const int scl_pin = D6;
-
-bool led_state = false;
-
-// variáveis para armazenar os dados "crus" do acelerômetro
-int16_t AcX, AcY, AcZ, Tmp, GyX, GyY, GyZ; 
+const int I2C_SDA = D5;
+const int I2C_SCL = D6;
 
 #define WLAN_SSID "Compartir!"
 #define WLAN_PASS "Compartir!"
 
+WiFiClient wifi;
+
 #define MQTT_SERVER      "broker.hivemq.com"
-#define MQTT_SERVERPORT  1883                   // use 8883 for SSL
+#define MQTT_SERVERPORT  1883 // use 8883 for SSL
 #define MQTT_USERNAME    ""
 #define MQTT_KEY ""
 
+Gateway *gateway;
+const int JSON_BUFF_SIZE = 1024;
+StaticJsonBuffer<JSON_BUFF_SIZE> jsonBuffer;
 
-// construindo o objeto JSON que irá armazenar os dados do acelerômetro na função populateJSON()
-StaticJsonBuffer<300> jsonBuffer;
-JsonObject& json = jsonBuffer.createObject();
-JsonObject& j_roll = json.createNestedObject("roll");
-JsonObject& j_pitch = json.createNestedObject("pitch");
-JsonObject& j_yaw = json.createNestedObject("yaw");
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(WLAN_SSID, WLAN_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(300);
+    Serial.print(".");
+  }
+  Adafruit_MQTT_Client mqtt(&wifi, MQTT_SERVER, MQTT_SERVERPORT, MQTT_USERNAME, MQTT_KEY);
+  Gateway *gateway = new Gateway(std::string("ESP8266AZA"), &wifi, &mqtt);
+  JsonObject& state = jsonBuffer.createObject();
+  MPU6050_Sensor acelerometro = new MPU6050_Sensor(std::string("MPU6050AZA"), &gateway, &state);
+  acelerometro.initI2C(I2C_SDA, I2C_SCL);
+  
+}
 
-WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, MQTT_SERVER, MQTT_SERVERPORT, MQTT_USERNAME, MQTT_KEY);
-Adafruit_MQTT_Publish mqtt_chan = Adafruit_MQTT_Publish(&mqtt, "/thisismychan");
-
-// Bug workaround for Arduino 1.6.6, it seems to need a function declaration
-// for some reason (only affects ESP8266, likely an arduino-builder bug).
-void MQTT_connect();
-uint32_t last_pub;
-
+void loop() {
+  gateway->loop();
+}
